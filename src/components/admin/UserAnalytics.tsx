@@ -6,11 +6,9 @@ import {
   Activity, 
   Clock, 
   Download,
-  Smartphone,
-  Monitor,
-  Tablet,
   TrendingUp,
-  Calendar
+  Calendar,
+  BarChart3
 } from 'lucide-react';
 import { dataService } from '../../services/dataService';
 import { LoginSession, SystemStats } from '../../types';
@@ -77,25 +75,21 @@ const UserAnalytics: React.FC = () => {
     }).sort((a, b) => new Date(b.loginTime).getTime() - new Date(a.loginTime).getTime());
   };
 
-  const getDeviceStats = () => {
+  const getLoginTrends = () => {
     const sessions = getFilteredSessions();
-    const deviceCounts = sessions.reduce((acc, session) => {
-      const device = session.deviceInfo || 'Unknown';
-      acc[device] = (acc[device] || 0) + 1;
+    const trends = sessions.reduce((acc, session) => {
+      const date = new Date(session.loginTime).toLocaleDateString();
+      acc[date] = (acc[date] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
 
-    return deviceCounts;
-  };
-
-  const getDeviceIcon = (device: string) => {
-    if (device.includes('Mobile')) return Smartphone;
-    if (device.includes('Tablet')) return Tablet;
-    return Monitor;
+    return Object.entries(trends)
+      .sort(([a], [b]) => new Date(a).getTime() - new Date(b).getTime())
+      .slice(-7); // Last 7 days
   };
 
   const filteredSessions = getFilteredSessions();
-  const deviceStats = getDeviceStats();
+  const loginTrends = getLoginTrends();
 
   return (
     <div className="space-y-8">
@@ -111,7 +105,7 @@ const UserAnalytics: React.FC = () => {
           </div>
           <div>
             <h2 className="text-2xl font-bold text-white mb-1">User Analytics</h2>
-            <p className="text-blue-200">Monitor user activity and login patterns</p>
+            <p className="text-blue-200">Monitor user activity and engagement patterns</p>
           </div>
         </div>
       </motion.div>
@@ -125,7 +119,8 @@ const UserAnalytics: React.FC = () => {
             icon: Users, 
             color: 'from-blue-500 to-cyan-500',
             bgColor: 'bg-blue-500/10',
-            borderColor: 'border-blue-500/30'
+            borderColor: 'border-blue-500/30',
+            change: '+12%'
           },
           { 
             title: 'Active Users', 
@@ -133,7 +128,8 @@ const UserAnalytics: React.FC = () => {
             icon: UserCheck, 
             color: 'from-green-500 to-emerald-500',
             bgColor: 'bg-green-500/10',
-            borderColor: 'border-green-500/30'
+            borderColor: 'border-green-500/30',
+            change: '+8%'
           },
           { 
             title: 'Total Logins', 
@@ -141,7 +137,8 @@ const UserAnalytics: React.FC = () => {
             icon: TrendingUp, 
             color: 'from-purple-500 to-pink-500',
             bgColor: 'bg-purple-500/10',
-            borderColor: 'border-purple-500/30'
+            borderColor: 'border-purple-500/30',
+            change: '+15%'
           },
           { 
             title: 'Online Now', 
@@ -149,7 +146,8 @@ const UserAnalytics: React.FC = () => {
             icon: Activity, 
             color: 'from-orange-500 to-red-500',
             bgColor: 'bg-orange-500/10',
-            borderColor: 'border-orange-500/30'
+            borderColor: 'border-orange-500/30',
+            change: 'Real-time'
           }
         ].map((stat, index) => {
           const Icon = stat.icon;
@@ -175,6 +173,7 @@ const UserAnalytics: React.FC = () => {
                     className="text-right"
                   >
                     <p className="text-3xl font-bold text-white">{stat.value}</p>
+                    <p className="text-green-400 text-sm font-medium">{stat.change}</p>
                   </motion.div>
                 </div>
                 <h3 className="text-peacock-200 font-medium">{stat.title}</h3>
@@ -184,29 +183,35 @@ const UserAnalytics: React.FC = () => {
         })}
       </div>
 
-      {/* Device Statistics */}
+      {/* Login Trends Chart */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.4 }}
         className="bg-dark-800/50 backdrop-blur-xl rounded-2xl border border-peacock-500/20 p-6"
       >
-        <h3 className="text-xl font-bold text-white mb-4">Device Usage</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {Object.entries(deviceStats).map(([device, count], index) => {
-            const DeviceIcon = getDeviceIcon(device);
+        <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+          <BarChart3 className="w-5 h-5 text-peacock-400" />
+          Login Trends (Last 7 Days)
+        </h3>
+        <div className="grid grid-cols-7 gap-2 h-32">
+          {loginTrends.map(([date, count], index) => {
+            const maxCount = Math.max(...loginTrends.map(([, c]) => c));
+            const height = maxCount > 0 ? (count / maxCount) * 100 : 0;
+            
             return (
               <motion.div
-                key={device}
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: index * 0.1 }}
-                className="flex items-center gap-3 p-4 bg-dark-700/30 rounded-xl border border-dark-600"
+                key={date}
+                initial={{ height: 0 }}
+                animate={{ height: `${height}%` }}
+                transition={{ delay: index * 0.1, duration: 0.5 }}
+                className="bg-gradient-to-t from-peacock-500 to-blue-500 rounded-t-lg flex flex-col justify-end relative group"
               >
-                <DeviceIcon className="w-6 h-6 text-peacock-400" />
-                <div>
-                  <p className="text-white font-semibold">{count}</p>
-                  <p className="text-peacock-300 text-sm">{device}</p>
+                <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-dark-700 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity">
+                  {count} logins
+                </div>
+                <div className="text-center text-xs text-peacock-300 mt-2">
+                  {new Date(date).toLocaleDateString('en-US', { weekday: 'short' })}
                 </div>
               </motion.div>
             );
@@ -270,17 +275,24 @@ const UserAnalytics: React.FC = () => {
               <tr>
                 <th className="text-left p-4 text-peacock-300 font-medium">User</th>
                 <th className="text-left p-4 text-peacock-300 font-medium">Login Time</th>
-                <th className="text-left p-4 text-peacock-300 font-medium">Device</th>
                 <th className="text-left p-4 text-peacock-300 font-medium">Duration</th>
                 <th className="text-left p-4 text-peacock-300 font-medium">Status</th>
+                <th className="text-left p-4 text-peacock-300 font-medium">Quality</th>
               </tr>
             </thead>
             <tbody>
               {filteredSessions.slice(0, 20).map((session, index) => {
-                const DeviceIcon = getDeviceIcon(session.deviceInfo || 'Unknown');
                 const duration = session.sessionDuration 
                   ? Math.round(session.sessionDuration / 60000) 
                   : Math.round((new Date().getTime() - new Date(session.loginTime).getTime()) / 60000);
+                
+                const quality = duration > 60 ? 'Excellent' :
+                               duration > 30 ? 'Good' :
+                               duration > 10 ? 'Average' : 'Brief';
+
+                const qualityColor = duration > 60 ? 'text-green-400 bg-green-500/10' :
+                                   duration > 30 ? 'text-blue-400 bg-blue-500/10' :
+                                   duration > 10 ? 'text-yellow-400 bg-yellow-500/10' : 'text-red-400 bg-red-500/10';
                 
                 return (
                   <motion.tr
@@ -314,12 +326,6 @@ const UserAnalytics: React.FC = () => {
                     </td>
                     <td className="p-4">
                       <div className="flex items-center gap-2">
-                        <DeviceIcon className="w-4 h-4 text-peacock-400" />
-                        <span className="text-white text-sm">{session.deviceInfo || 'Unknown'}</span>
-                      </div>
-                    </td>
-                    <td className="p-4">
-                      <div className="flex items-center gap-2">
                         <Clock className="w-4 h-4 text-peacock-400" />
                         <span className="text-white text-sm">{duration} min</span>
                       </div>
@@ -331,6 +337,11 @@ const UserAnalytics: React.FC = () => {
                           : 'bg-gray-500/20 text-gray-400 border border-gray-500/30'
                       }`}>
                         {session.isActive ? 'Active' : 'Ended'}
+                      </span>
+                    </td>
+                    <td className="p-4">
+                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${qualityColor}`}>
+                        {quality}
                       </span>
                     </td>
                   </motion.tr>

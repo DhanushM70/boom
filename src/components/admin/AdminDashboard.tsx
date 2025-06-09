@@ -7,7 +7,6 @@ import {
   Clock, 
   CheckSquare, 
   AlertTriangle,
-  Download,
   RotateCcw,
   TrendingUp,
   Activity,
@@ -45,22 +44,6 @@ const AdminDashboard: React.FC = () => {
 
   const loadStats = () => {
     setStats(dataService.getSystemStats());
-  };
-
-  const exportCSV = () => {
-    const csvContent = dataService.exportToCSV();
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    
-    if (link.download !== undefined) {
-      const url = URL.createObjectURL(blob);
-      link.setAttribute('href', url);
-      link.setAttribute('download', `isaac-asimov-lab-report-${new Date().toISOString().split('T')[0]}.csv`);
-      link.style.visibility = 'hidden';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    }
   };
 
   const tabs = [
@@ -198,15 +181,15 @@ const AdminDashboard: React.FC = () => {
       >
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h3 className="text-xl font-bold text-white mb-2">📊 Export & Reports</h3>
-            <p className="text-peacock-300">Generate comprehensive reports for analysis and record-keeping</p>
+            <h3 className="text-xl font-bold text-white mb-2">📊 Professional Excel Reports</h3>
+            <p className="text-peacock-300">Generate comprehensive Excel reports with detailed analytics and professional formatting</p>
           </div>
           <div className="p-3 bg-gradient-to-br from-green-500 to-emerald-500 rounded-xl">
             <FileSpreadsheet className="w-6 h-6 text-white" />
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4">
           <motion.button
             whileHover={{ scale: 1.02, boxShadow: '0 10px 30px rgba(0, 206, 209, 0.3)' }}
             whileTap={{ scale: 0.98 }}
@@ -217,45 +200,29 @@ const AdminDashboard: React.FC = () => {
             <div className="relative z-10">
               <div className="flex items-center gap-3 mb-2">
                 <Eye className="w-6 h-6 group-hover:animate-bounce" />
-                <span className="text-lg">Preview & Export Excel</span>
+                <span className="text-lg">Preview & Export Professional Excel Report</span>
               </div>
               <p className="text-peacock-100 text-sm opacity-90">
-                Professional Excel report with formatted sheets, charts, and analysis
-              </p>
-            </div>
-          </motion.button>
-
-          <motion.button
-            whileHover={{ scale: 1.02, boxShadow: '0 10px 30px rgba(34, 197, 94, 0.3)' }}
-            whileTap={{ scale: 0.98 }}
-            onClick={exportCSV}
-            className="group relative overflow-hidden bg-gradient-to-r from-green-500 to-emerald-500 text-white p-6 rounded-xl font-semibold shadow-lg hover:shadow-2xl transition-all duration-300"
-          >
-            <div className="absolute inset-0 bg-gradient-to-r from-green-600 to-emerald-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-            <div className="relative z-10">
-              <div className="flex items-center gap-3 mb-2">
-                <Download className="w-6 h-6 group-hover:animate-bounce" />
-                <span className="text-lg">Quick CSV Export</span>
-              </div>
-              <p className="text-green-100 text-sm opacity-90">
-                Simple CSV format for quick data analysis and import
+                Comprehensive Excel workbook with multiple sheets, professional formatting, charts, and detailed component analysis
               </p>
             </div>
           </motion.button>
         </div>
 
         <div className="mt-4 p-4 bg-dark-700/30 rounded-xl border border-dark-600">
-          <h4 className="text-peacock-400 font-semibold mb-2">📋 Export Features:</h4>
+          <h4 className="text-peacock-400 font-semibold mb-2">📋 Professional Excel Report Features:</h4>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-peacock-300">
             <ul className="space-y-1">
-              <li>• Complete request history with status tracking</li>
-              <li>• Component inventory with utilization metrics</li>
-              <li>• User activity and login session data</li>
+              <li>• Executive Summary Dashboard with KPIs</li>
+              <li>• Detailed Component Inventory Analysis</li>
+              <li>• Complete Request History with Status Tracking</li>
+              <li>• User Activity and Login Analytics</li>
             </ul>
             <ul className="space-y-1">
-              <li>• Professional formatting with color-coded headers</li>
+              <li>• Professional formatting with branded headers</li>
+              <li>• Conditional formatting for status indicators</li>
               <li>• Statistical summaries and trend analysis</li>
-              <li>• Ready for presentations and reporting</li>
+              <li>• Ready for presentations and board meetings</li>
             </ul>
           </div>
         </div>
