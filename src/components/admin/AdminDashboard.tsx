@@ -11,7 +11,8 @@ import {
   RotateCcw,
   TrendingUp,
   Activity,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Eye
 } from 'lucide-react';
 import { dataService } from '../../services/dataService';
 import { BorrowRequest, Component, SystemStats } from '../../types';
@@ -20,9 +21,11 @@ import InventoryManagement from './InventoryManagement';
 import BorrowHistory from './BorrowHistory';
 import ReturnManagement from './ReturnManagement';
 import UserAnalytics from './UserAnalytics';
+import ExportPreviewModal from './ExportPreviewModal';
 
 const AdminDashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState('overview');
+  const [showExportPreview, setShowExportPreview] = useState(false);
   const [stats, setStats] = useState<SystemStats>({
     totalUsers: 0,
     activeUsers: 0,
@@ -57,15 +60,6 @@ const AdminDashboard: React.FC = () => {
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-    }
-  };
-
-  const exportExcel = () => {
-    try {
-      dataService.exportToExcel();
-    } catch (error) {
-      console.error('Excel export failed, falling back to CSV:', error);
-      exportCSV();
     }
   };
 
@@ -200,33 +194,71 @@ const AdminDashboard: React.FC = () => {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.6 }}
-        className="flex flex-col sm:flex-row gap-4 justify-end"
+        className="bg-gradient-to-r from-dark-800/50 to-dark-700/50 backdrop-blur-xl rounded-2xl border border-peacock-500/20 p-6"
       >
-        <motion.button
-          whileHover={{ scale: 1.05, boxShadow: '0 10px 30px rgba(0, 206, 209, 0.3)' }}
-          whileTap={{ scale: 0.95 }}
-          onClick={exportExcel}
-          className="group relative overflow-hidden bg-gradient-to-r from-green-500 to-emerald-500 text-white px-8 py-4 rounded-2xl font-semibold shadow-lg hover:shadow-2xl transition-all duration-300"
-        >
-          <div className="absolute inset-0 bg-gradient-to-r from-green-600 to-emerald-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-          <div className="relative z-10 flex items-center gap-3">
-            <FileSpreadsheet className="w-5 h-5 group-hover:animate-bounce" />
-            Export Excel Report
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h3 className="text-xl font-bold text-white mb-2">📊 Export & Reports</h3>
+            <p className="text-peacock-300">Generate comprehensive reports for analysis and record-keeping</p>
           </div>
-        </motion.button>
+          <div className="p-3 bg-gradient-to-br from-green-500 to-emerald-500 rounded-xl">
+            <FileSpreadsheet className="w-6 h-6 text-white" />
+          </div>
+        </div>
 
-        <motion.button
-          whileHover={{ scale: 1.05, boxShadow: '0 10px 30px rgba(0, 206, 209, 0.3)' }}
-          whileTap={{ scale: 0.95 }}
-          onClick={exportCSV}
-          className="group relative overflow-hidden bg-gradient-to-r from-peacock-500 to-blue-500 text-white px-8 py-4 rounded-2xl font-semibold shadow-lg hover:shadow-2xl transition-all duration-300"
-        >
-          <div className="absolute inset-0 bg-gradient-to-r from-peacock-600 to-blue-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-          <div className="relative z-10 flex items-center gap-3">
-            <Download className="w-5 h-5 group-hover:animate-bounce" />
-            Export CSV Report
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <motion.button
+            whileHover={{ scale: 1.02, boxShadow: '0 10px 30px rgba(0, 206, 209, 0.3)' }}
+            whileTap={{ scale: 0.98 }}
+            onClick={() => setShowExportPreview(true)}
+            className="group relative overflow-hidden bg-gradient-to-r from-peacock-500 to-blue-500 text-white p-6 rounded-xl font-semibold shadow-lg hover:shadow-2xl transition-all duration-300"
+          >
+            <div className="absolute inset-0 bg-gradient-to-r from-peacock-600 to-blue-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+            <div className="relative z-10">
+              <div className="flex items-center gap-3 mb-2">
+                <Eye className="w-6 h-6 group-hover:animate-bounce" />
+                <span className="text-lg">Preview & Export Excel</span>
+              </div>
+              <p className="text-peacock-100 text-sm opacity-90">
+                Professional Excel report with formatted sheets, charts, and analysis
+              </p>
+            </div>
+          </motion.button>
+
+          <motion.button
+            whileHover={{ scale: 1.02, boxShadow: '0 10px 30px rgba(34, 197, 94, 0.3)' }}
+            whileTap={{ scale: 0.98 }}
+            onClick={exportCSV}
+            className="group relative overflow-hidden bg-gradient-to-r from-green-500 to-emerald-500 text-white p-6 rounded-xl font-semibold shadow-lg hover:shadow-2xl transition-all duration-300"
+          >
+            <div className="absolute inset-0 bg-gradient-to-r from-green-600 to-emerald-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+            <div className="relative z-10">
+              <div className="flex items-center gap-3 mb-2">
+                <Download className="w-6 h-6 group-hover:animate-bounce" />
+                <span className="text-lg">Quick CSV Export</span>
+              </div>
+              <p className="text-green-100 text-sm opacity-90">
+                Simple CSV format for quick data analysis and import
+              </p>
+            </div>
+          </motion.button>
+        </div>
+
+        <div className="mt-4 p-4 bg-dark-700/30 rounded-xl border border-dark-600">
+          <h4 className="text-peacock-400 font-semibold mb-2">📋 Export Features:</h4>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-peacock-300">
+            <ul className="space-y-1">
+              <li>• Complete request history with status tracking</li>
+              <li>• Component inventory with utilization metrics</li>
+              <li>• User activity and login session data</li>
+            </ul>
+            <ul className="space-y-1">
+              <li>• Professional formatting with color-coded headers</li>
+              <li>• Statistical summaries and trend analysis</li>
+              <li>• Ready for presentations and reporting</li>
+            </ul>
           </div>
-        </motion.button>
+        </div>
       </motion.div>
     </div>
   );
@@ -296,6 +328,12 @@ const AdminDashboard: React.FC = () => {
           {renderContent()}
         </motion.div>
       </div>
+
+      {/* Export Preview Modal */}
+      <ExportPreviewModal 
+        isOpen={showExportPreview}
+        onClose={() => setShowExportPreview(false)}
+      />
     </div>
   );
 };
