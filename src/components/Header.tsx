@@ -1,11 +1,24 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { LogOut, Cpu } from 'lucide-react';
+import { LogOut, Cpu, Wifi, WifiOff } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { cloudService } from '../services/cloudService';
 import NotificationBell from './NotificationBell';
 
 const Header: React.FC = () => {
   const { user, logout } = useAuth();
+  const [connectionStatus, setConnectionStatus] = useState({ isOnline: true, lastSync: null });
+
+  useEffect(() => {
+    const checkStatus = () => {
+      setConnectionStatus(cloudService.getConnectionStatus());
+    };
+    
+    checkStatus();
+    const interval = setInterval(checkStatus, 10000); // Check every 10 seconds
+    
+    return () => clearInterval(interval);
+  }, []);
 
   if (!user) return null;
 
@@ -30,12 +43,36 @@ const Header: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-4">
+            {/* Connection Status */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="hidden sm:flex items-center gap-2"
+            >
+              {connectionStatus.isOnline ? (
+                <div className="flex items-center gap-1 text-green-400">
+                  <Wifi className="w-4 h-4" />
+                  <span className="text-xs">Online</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-1 text-red-400">
+                  <WifiOff className="w-4 h-4" />
+                  <span className="text-xs">Offline</span>
+                </div>
+              )}
+            </motion.div>
+
             <NotificationBell />
             
             <div className="flex items-center gap-3">
               <div className="text-right">
                 <p className="text-white font-medium">{user.name}</p>
-                <p className="text-peacock-300 text-sm">{user.email}</p>
+                <div className="flex items-center gap-2">
+                  <p className="text-peacock-300 text-sm">{user.email}</p>
+                  {user.isActive && (
+                    <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                  )}
+                </div>
               </div>
               
               <motion.button

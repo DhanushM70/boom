@@ -6,6 +6,9 @@ export interface User {
   rollNo?: string;
   mobile?: string;
   registeredAt: string;
+  lastLoginAt?: string;
+  loginCount?: number;
+  isActive?: boolean;
 }
 
 export interface Component {
@@ -15,6 +18,8 @@ export interface Component {
   availableQuantity: number;
   category: string;
   description?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface BorrowRequest {
@@ -33,6 +38,8 @@ export interface BorrowRequest {
   approvedAt?: string;
   returnedAt?: string;
   notes?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface Notification {
@@ -45,9 +52,36 @@ export interface Notification {
   createdAt: string;
 }
 
+export interface LoginSession {
+  id: string;
+  userId: string;
+  userEmail: string;
+  userName: string;
+  userRole: 'student' | 'admin';
+  loginTime: string;
+  logoutTime?: string;
+  ipAddress?: string;
+  userAgent?: string;
+  deviceInfo?: string;
+  sessionDuration?: number;
+  isActive: boolean;
+}
+
 export interface SystemData {
   users: User[];
   components: Component[];
   requests: BorrowRequest[];
   notifications: Notification[];
+  loginSessions: LoginSession[];
+}
+
+export interface SystemStats {
+  totalUsers: number;
+  activeUsers: number;
+  totalLogins: number;
+  onlineUsers: number;
+  totalRequests: number;
+  pendingRequests: number;
+  totalComponents: number;
+  overdueItems: number;
 }

@@ -1,4 +1,5 @@
-import { SystemData, User, Component, BorrowRequest, Notification } from '../types';
+import { SystemData, User, Component, BorrowRequest, Notification, LoginSession, SystemStats } from '../types';
+import { cloudService } from './cloudService';
 
 class DataService {
   private storageKey = 'isaacLabData';
@@ -12,6 +13,8 @@ class DataService {
           email: 'admin@issacasimov.in',
           role: 'admin',
           registeredAt: new Date().toISOString(),
+          loginCount: 0,
+          isActive: false
         }
       ],
       components: [
@@ -21,7 +24,8 @@ class DataService {
           totalQuantity: 25,
           availableQuantity: 25,
           category: 'Microcontroller',
-          description: 'Arduino Uno R3 development board'
+          description: 'Arduino Uno R3 development board',
+          createdAt: new Date().toISOString()
         },
         {
           id: 'comp-2',
@@ -29,7 +33,8 @@ class DataService {
           totalQuantity: 15,
           availableQuantity: 15,
           category: 'Motor Driver',
-          description: 'Dual H-Bridge Motor Driver'
+          description: 'Dual H-Bridge Motor Driver',
+          createdAt: new Date().toISOString()
         },
         {
           id: 'comp-3',
@@ -37,7 +42,8 @@ class DataService {
           totalQuantity: 20,
           availableQuantity: 20,
           category: 'Sensor',
-          description: 'Ultrasonic distance sensor'
+          description: 'Ultrasonic distance sensor',
+          createdAt: new Date().toISOString()
         },
         {
           id: 'comp-4',
@@ -45,7 +51,8 @@ class DataService {
           totalQuantity: 30,
           availableQuantity: 30,
           category: 'Actuator',
-          description: '9g micro servo motor'
+          description: '9g micro servo motor',
+          createdAt: new Date().toISOString()
         },
         {
           id: 'comp-5',
@@ -53,11 +60,13 @@ class DataService {
           totalQuantity: 12,
           availableQuantity: 12,
           category: 'Microcontroller',
-          description: 'WiFi and Bluetooth enabled microcontroller'
+          description: 'WiFi and Bluetooth enabled microcontroller',
+          createdAt: new Date().toISOString()
         }
       ],
       requests: [],
-      notifications: []
+      notifications: [],
+      loginSessions: []
     };
   }
 
@@ -65,7 +74,12 @@ class DataService {
     try {
       const data = localStorage.getItem(this.storageKey);
       if (data) {
-        return JSON.parse(data);
+        const parsedData = JSON.parse(data);
+        // Ensure loginSessions exists for backward compatibility
+        if (!parsedData.loginSessions) {
+          parsedData.loginSessions = [];
+        }
+        return parsedData;
       }
     } catch (error) {
       console.error('Error loading data:', error);
@@ -76,6 +90,8 @@ class DataService {
   saveData(data: SystemData): void {
     try {
       localStorage.setItem(this.storageKey, JSON.stringify(data));
+      // Trigger cloud sync
+      cloudService.addPendingChange({ type: 'data_update', data });
     } catch (error) {
       console.error('Error saving data:', error);
     }
@@ -84,8 +100,20 @@ class DataService {
   // User operations
   addUser(user: User): void {
     const data = this.getData();
+    user.createdAt = new Date().toISOString();
+    user.loginCount = 0;
+    user.isActive = false;
     data.users.push(user);
     this.saveData(data);
+  }
+
+  updateUser(user: User): void {
+    const data = this.getData();
+    const index = data.users.findIndex(u => u.id === user.id);
+    if (index !== -1) {
+      data.users[index] = { ...user, updatedAt: new Date().toISOString() };
+      this.saveData(data);
+    }
   }
 
   getUser(email: string): User | undefined {
@@ -111,11 +139,86 @@ class DataService {
         email,
         role: 'student',
         registeredAt: new Date().toISOString(),
+        loginCount: 0,
+        isActive: true
       };
       this.addUser(user);
     }
 
+    if (user) {
+      // Update login statistics
+      user.lastLoginAt = new Date().toISOString();
+      user.loginCount = (user.loginCount || 0) + 1;
+      user.isActive = true;
+      this.updateUser(user);
+
+      // Create login session
+      this.createLoginSession(user);
+    }
+
     return user || null;
+  }
+
+  // Login session management
+  createLoginSession(user: User): LoginSession {
+    const session: LoginSession = {
+      id: `session-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      userId: user.id,
+      userEmail: user.email,
+      userName: user.name,
+      userRole: user.role,
+      loginTime: new Date().toISOString(),
+      ipAddress: this.getClientIP(),
+      userAgent: navigator.userAgent,
+      deviceInfo: this.getDeviceInfo(),
+      isActive: true
+    };
+
+    const data = this.getData();
+    data.loginSessions.push(session);
+    this.saveData(data);
+
+    return session;
+  }
+
+  endLoginSession(userId: string): void {
+    const data = this.getData();
+    const activeSessions = data.loginSessions.filter(s => s.userId === userId && s.isActive);
+    
+    activeSessions.forEach(session => {
+      session.logoutTime = new Date().toISOString();
+      session.isActive = false;
+      session.sessionDuration = new Date().getTime() - new Date(session.loginTime).getTime();
+    });
+
+    // Update user active status
+    const user = data.users.find(u => u.id === userId);
+    if (user) {
+      user.isActive = false;
+      user.updatedAt = new Date().toISOString();
+    }
+
+    this.saveData(data);
+  }
+
+  getLoginSessions(): LoginSession[] {
+    return this.getData().loginSessions;
+  }
+
+  getActiveUsers(): User[] {
+    return this.getData().users.filter(u => u.isActive);
+  }
+
+  private getClientIP(): string {
+    // In a real application, you'd get this from your backend
+    return 'Unknown';
+  }
+
+  private getDeviceInfo(): string {
+    const ua = navigator.userAgent;
+    if (ua.includes('Mobile')) return 'Mobile Device';
+    if (ua.includes('Tablet')) return 'Tablet';
+    return 'Desktop';
   }
 
   // Component operations
@@ -127,13 +230,14 @@ class DataService {
     const data = this.getData();
     const index = data.components.findIndex(c => c.id === component.id);
     if (index !== -1) {
-      data.components[index] = component;
+      data.components[index] = { ...component, updatedAt: new Date().toISOString() };
       this.saveData(data);
     }
   }
 
   addComponent(component: Component): void {
     const data = this.getData();
+    component.createdAt = new Date().toISOString();
     data.components.push(component);
     this.saveData(data);
   }
@@ -141,6 +245,7 @@ class DataService {
   // Request operations
   addRequest(request: BorrowRequest): void {
     const data = this.getData();
+    request.createdAt = new Date().toISOString();
     data.requests.push(request);
     this.saveData(data);
   }
@@ -149,7 +254,7 @@ class DataService {
     const data = this.getData();
     const index = data.requests.findIndex(r => r.id === request.id);
     if (index !== -1) {
-      data.requests[index] = request;
+      data.requests[index] = { ...request, updatedAt: new Date().toISOString() };
       this.saveData(data);
     }
   }
@@ -180,6 +285,26 @@ class DataService {
       notification.read = true;
       this.saveData(data);
     }
+  }
+
+  // System statistics
+  getSystemStats(): SystemStats {
+    const data = this.getData();
+    const now = new Date();
+    const overdueItems = data.requests.filter(r => 
+      r.status === 'approved' && new Date(r.dueDate) < now
+    );
+
+    return {
+      totalUsers: data.users.length,
+      activeUsers: data.users.filter(u => u.isActive).length,
+      totalLogins: data.users.reduce((sum, u) => sum + (u.loginCount || 0), 0),
+      onlineUsers: data.loginSessions.filter(s => s.isActive).length,
+      totalRequests: data.requests.length,
+      pendingRequests: data.requests.filter(r => r.status === 'pending').length,
+      totalComponents: data.components.length,
+      overdueItems: overdueItems.length
+    };
   }
 
   // Export functionality
@@ -213,6 +338,38 @@ class DataService {
       request.approvedBy || '',
       request.approvedAt ? new Date(request.approvedAt).toLocaleDateString() : '',
       request.returnedAt ? new Date(request.returnedAt).toLocaleDateString() : ''
+    ]);
+
+    const csvContent = [headers, ...rows]
+      .map(row => row.map(cell => `"${cell}"`).join(','))
+      .join('\n');
+
+    return csvContent;
+  }
+
+  exportLoginSessionsCSV(): string {
+    const sessions = this.getLoginSessions();
+    
+    const headers = [
+      'Login Time',
+      'Logout Time',
+      'User Name',
+      'User Email',
+      'Role',
+      'Device Info',
+      'Session Duration (minutes)',
+      'Status'
+    ];
+
+    const rows = sessions.map(session => [
+      new Date(session.loginTime).toLocaleString(),
+      session.logoutTime ? new Date(session.logoutTime).toLocaleString() : 'Active',
+      session.userName,
+      session.userEmail,
+      session.userRole,
+      session.deviceInfo || 'Unknown',
+      session.sessionDuration ? Math.round(session.sessionDuration / 60000).toString() : 'Active',
+      session.isActive ? 'Active' : 'Ended'
     ]);
 
     const csvContent = [headers, ...rows]

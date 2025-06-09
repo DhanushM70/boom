@@ -32,7 +32,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const savedUser = localStorage.getItem('currentUser');
     if (savedUser) {
       try {
-        setUser(JSON.parse(savedUser));
+        const parsedUser = JSON.parse(savedUser);
+        setUser(parsedUser);
+        
+        // Update user as active in the system
+        const systemUser = dataService.getUser(parsedUser.email);
+        if (systemUser) {
+          systemUser.isActive = true;
+          dataService.updateUser(systemUser);
+        }
       } catch (error) {
         console.error('Error loading saved user:', error);
         localStorage.removeItem('currentUser');
@@ -52,6 +60,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   const logout = () => {
+    if (user) {
+      // End login session
+      dataService.endLoginSession(user.id);
+    }
     setUser(null);
     localStorage.removeItem('currentUser');
   };

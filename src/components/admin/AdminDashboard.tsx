@@ -9,47 +9,52 @@ import {
   AlertTriangle,
   Download,
   RotateCcw,
-  TrendingUp
+  TrendingUp,
+  Activity,
+  Wifi,
+  WifiOff
 } from 'lucide-react';
 import { dataService } from '../../services/dataService';
-import { BorrowRequest, Component } from '../../types';
+import { cloudService } from '../../services/cloudService';
+import { BorrowRequest, Component, SystemStats } from '../../types';
 import RequestManagement from './RequestManagement';
 import InventoryManagement from './InventoryManagement';
 import BorrowHistory from './BorrowHistory';
 import ReturnManagement from './ReturnManagement';
+import UserAnalytics from './UserAnalytics';
 
 const AdminDashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState('overview');
-  const [stats, setStats] = useState({
+  const [stats, setStats] = useState<SystemStats>({
+    totalUsers: 0,
+    activeUsers: 0,
+    totalLogins: 0,
+    onlineUsers: 0,
     totalRequests: 0,
     pendingRequests: 0,
     totalComponents: 0,
-    overdueItems: 0,
-    approvedItems: 0,
-    returnedItems: 0,
+    overdueItems: 0
   });
+  const [connectionStatus, setConnectionStatus] = useState({ isOnline: true, lastSync: null });
 
   useEffect(() => {
     loadStats();
+    checkConnectionStatus();
+    
+    const interval = setInterval(() => {
+      loadStats();
+      checkConnectionStatus();
+    }, 30000); // Update every 30 seconds
+    
+    return () => clearInterval(interval);
   }, []);
 
   const loadStats = () => {
-    const requests = dataService.getRequests();
-    const components = dataService.getComponents();
-    
-    const now = new Date();
-    const overdueItems = requests.filter(r => 
-      r.status === 'approved' && new Date(r.dueDate) < now
-    );
+    setStats(dataService.getSystemStats());
+  };
 
-    setStats({
-      totalRequests: requests.length,
-      pendingRequests: requests.filter(r => r.status === 'pending').length,
-      totalComponents: components.length,
-      overdueItems: overdueItems.length,
-      approvedItems: requests.filter(r => r.status === 'approved').length,
-      returnedItems: requests.filter(r => r.status === 'returned').length,
-    });
+  const checkConnectionStatus = () => {
+    setConnectionStatus(cloudService.getConnectionStatus());
   };
 
   const exportCSV = () => {
@@ -68,11 +73,17 @@ const AdminDashboard: React.FC = () => {
     }
   };
 
+  const forceSync = async () => {
+    await cloudService.syncToCloud();
+    checkConnectionStatus();
+  };
+
   const tabs = [
     { id: 'overview', label: 'Overview', icon: BarChart3, color: 'from-blue-500 to-cyan-500' },
     { id: 'requests', label: 'Requests', icon: CheckSquare, color: 'from-yellow-500 to-orange-500' },
     { id: 'returns', label: 'Returns', icon: RotateCcw, color: 'from-green-500 to-emerald-500' },
     { id: 'inventory', label: 'Inventory', icon: Package, color: 'from-purple-500 to-pink-500' },
+    { id: 'analytics', label: 'User Analytics', icon: Activity, color: 'from-indigo-500 to-purple-500' },
     { id: 'history', label: 'History', icon: Clock, color: 'from-indigo-500 to-blue-500' },
   ];
 
@@ -84,6 +95,8 @@ const AdminDashboard: React.FC = () => {
         return <ReturnManagement onUpdate={loadStats} />;
       case 'inventory':
         return <InventoryManagement />;
+      case 'analytics':
+        return <UserAnalytics />;
       case 'history':
         return <BorrowHistory />;
       default:
@@ -115,19 +128,62 @@ const AdminDashboard: React.FC = () => {
               <p className="text-peacock-200">Real-time insights into component usage and student activity</p>
             </div>
           </motion.div>
+          
+          {/* Connection Status */}
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.4 }}
+            className="flex items-center gap-3 mt-4"
+          >
+            {connectionStatus.isOnline ? (
+              <div className="flex items-center gap-2 bg-green-500/20 border border-green-500/30 px-3 py-1 rounded-full">
+                <Wifi className="w-4 h-4 text-green-400" />
+                <span className="text-green-400 text-sm font-medium">Online</span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 bg-red-500/20 border border-red-500/30 px-3 py-1 rounded-full">
+                <WifiOff className="w-4 h-4 text-red-400" />
+                <span className="text-red-400 text-sm font-medium">Offline</span>
+              </div>
+            )}
+            {connectionStatus.lastSync && (
+              <span className="text-peacock-300 text-sm">
+                Last sync: {new Date(connectionStatus.lastSync).toLocaleString()}
+              </span>
+            )}
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={forceSync}
+              className="text-peacock-400 hover:text-peacock-300 text-sm underline"
+            >
+              Force Sync
+            </motion.button>
+          </motion.div>
         </div>
       </motion.div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {/* Enhanced Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {[
           { 
-            title: 'Total Requests', 
-            value: stats.totalRequests, 
+            title: 'Total Users', 
+            value: stats.totalUsers, 
             icon: Users, 
             color: 'from-blue-500 to-cyan-500',
             bgColor: 'bg-blue-500/10',
-            borderColor: 'border-blue-500/30'
+            borderColor: 'border-blue-500/30',
+            subtitle: `${stats.activeUsers} active`
+          },
+          { 
+            title: 'Total Logins', 
+            value: stats.totalLogins, 
+            icon: Activity, 
+            color: 'from-green-500 to-emerald-500',
+            bgColor: 'bg-green-500/10',
+            borderColor: 'border-green-500/30',
+            subtitle: `${stats.onlineUsers} online now`
           },
           { 
             title: 'Pending Requests', 
@@ -135,15 +191,8 @@ const AdminDashboard: React.FC = () => {
             icon: Clock, 
             color: 'from-yellow-500 to-orange-500',
             bgColor: 'bg-yellow-500/10',
-            borderColor: 'border-yellow-500/30'
-          },
-          { 
-            title: 'Approved Items', 
-            value: stats.approvedItems, 
-            icon: CheckSquare, 
-            color: 'from-green-500 to-emerald-500',
-            bgColor: 'bg-green-500/10',
-            borderColor: 'border-green-500/30'
+            borderColor: 'border-yellow-500/30',
+            subtitle: `${stats.totalRequests} total`
           },
           { 
             title: 'Total Components', 
@@ -151,24 +200,9 @@ const AdminDashboard: React.FC = () => {
             icon: Package, 
             color: 'from-peacock-500 to-blue-500',
             bgColor: 'bg-peacock-500/10',
-            borderColor: 'border-peacock-500/30'
-          },
-          { 
-            title: 'Returned Items', 
-            value: stats.returnedItems, 
-            icon: RotateCcw, 
-            color: 'from-purple-500 to-pink-500',
-            bgColor: 'bg-purple-500/10',
-            borderColor: 'border-purple-500/30'
-          },
-          { 
-            title: 'Overdue Items', 
-            value: stats.overdueItems, 
-            icon: AlertTriangle, 
-            color: 'from-red-500 to-pink-500',
-            bgColor: 'bg-red-500/10',
-            borderColor: 'border-red-500/30'
-          },
+            borderColor: 'border-peacock-500/30',
+            subtitle: `${stats.overdueItems} overdue`
+          }
         ].map((stat, index) => {
           const Icon = stat.icon;
           return (
@@ -193,6 +227,7 @@ const AdminDashboard: React.FC = () => {
                     className="text-right"
                   >
                     <p className="text-3xl font-bold text-white">{stat.value}</p>
+                    <p className="text-peacock-300 text-sm">{stat.subtitle}</p>
                   </motion.div>
                 </div>
                 <h3 className="text-peacock-200 font-medium">{stat.title}</h3>
@@ -236,7 +271,7 @@ const AdminDashboard: React.FC = () => {
           <h1 className="text-4xl font-bold bg-gradient-to-r from-white to-peacock-200 bg-clip-text text-transparent mb-2">
             Admin Dashboard
           </h1>
-          <p className="text-peacock-300 text-lg">Manage lab components and student requests with precision</p>
+          <p className="text-peacock-300 text-lg">Manage lab components and monitor student activity with precision</p>
         </motion.div>
 
         {/* Enhanced Tab Navigation */}
