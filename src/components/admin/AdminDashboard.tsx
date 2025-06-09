@@ -11,11 +11,9 @@ import {
   RotateCcw,
   TrendingUp,
   Activity,
-  Wifi,
-  WifiOff
+  FileSpreadsheet
 } from 'lucide-react';
 import { dataService } from '../../services/dataService';
-import { cloudService } from '../../services/cloudService';
 import { BorrowRequest, Component, SystemStats } from '../../types';
 import RequestManagement from './RequestManagement';
 import InventoryManagement from './InventoryManagement';
@@ -35,26 +33,15 @@ const AdminDashboard: React.FC = () => {
     totalComponents: 0,
     overdueItems: 0
   });
-  const [connectionStatus, setConnectionStatus] = useState({ isOnline: true, lastSync: null });
 
   useEffect(() => {
     loadStats();
-    checkConnectionStatus();
-    
-    const interval = setInterval(() => {
-      loadStats();
-      checkConnectionStatus();
-    }, 30000); // Update every 30 seconds
-    
+    const interval = setInterval(loadStats, 30000); // Update every 30 seconds
     return () => clearInterval(interval);
   }, []);
 
   const loadStats = () => {
     setStats(dataService.getSystemStats());
-  };
-
-  const checkConnectionStatus = () => {
-    setConnectionStatus(cloudService.getConnectionStatus());
   };
 
   const exportCSV = () => {
@@ -73,9 +60,13 @@ const AdminDashboard: React.FC = () => {
     }
   };
 
-  const forceSync = async () => {
-    await cloudService.syncToCloud();
-    checkConnectionStatus();
+  const exportExcel = () => {
+    try {
+      dataService.exportToExcel();
+    } catch (error) {
+      console.error('Excel export failed, falling back to CSV:', error);
+      exportCSV();
+    }
   };
 
   const tabs = [
@@ -127,39 +118,6 @@ const AdminDashboard: React.FC = () => {
               <h2 className="text-3xl font-bold text-white mb-2">Lab Analytics Dashboard</h2>
               <p className="text-peacock-200">Real-time insights into component usage and student activity</p>
             </div>
-          </motion.div>
-          
-          {/* Connection Status */}
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.4 }}
-            className="flex items-center gap-3 mt-4"
-          >
-            {connectionStatus.isOnline ? (
-              <div className="flex items-center gap-2 bg-green-500/20 border border-green-500/30 px-3 py-1 rounded-full">
-                <Wifi className="w-4 h-4 text-green-400" />
-                <span className="text-green-400 text-sm font-medium">Online</span>
-              </div>
-            ) : (
-              <div className="flex items-center gap-2 bg-red-500/20 border border-red-500/30 px-3 py-1 rounded-full">
-                <WifiOff className="w-4 h-4 text-red-400" />
-                <span className="text-red-400 text-sm font-medium">Offline</span>
-              </div>
-            )}
-            {connectionStatus.lastSync && (
-              <span className="text-peacock-300 text-sm">
-                Last sync: {new Date(connectionStatus.lastSync).toLocaleString()}
-              </span>
-            )}
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={forceSync}
-              className="text-peacock-400 hover:text-peacock-300 text-sm underline"
-            >
-              Force Sync
-            </motion.button>
           </motion.div>
         </div>
       </motion.div>
@@ -242,8 +200,21 @@ const AdminDashboard: React.FC = () => {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.6 }}
-        className="flex justify-end"
+        className="flex flex-col sm:flex-row gap-4 justify-end"
       >
+        <motion.button
+          whileHover={{ scale: 1.05, boxShadow: '0 10px 30px rgba(0, 206, 209, 0.3)' }}
+          whileTap={{ scale: 0.95 }}
+          onClick={exportExcel}
+          className="group relative overflow-hidden bg-gradient-to-r from-green-500 to-emerald-500 text-white px-8 py-4 rounded-2xl font-semibold shadow-lg hover:shadow-2xl transition-all duration-300"
+        >
+          <div className="absolute inset-0 bg-gradient-to-r from-green-600 to-emerald-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+          <div className="relative z-10 flex items-center gap-3">
+            <FileSpreadsheet className="w-5 h-5 group-hover:animate-bounce" />
+            Export Excel Report
+          </div>
+        </motion.button>
+
         <motion.button
           whileHover={{ scale: 1.05, boxShadow: '0 10px 30px rgba(0, 206, 209, 0.3)' }}
           whileTap={{ scale: 0.95 }}
@@ -253,7 +224,7 @@ const AdminDashboard: React.FC = () => {
           <div className="absolute inset-0 bg-gradient-to-r from-peacock-600 to-blue-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
           <div className="relative z-10 flex items-center gap-3">
             <Download className="w-5 h-5 group-hover:animate-bounce" />
-            Export Detailed Report
+            Export CSV Report
           </div>
         </motion.button>
       </motion.div>

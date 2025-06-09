@@ -1,21 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { LogOut, Cpu, Wifi, WifiOff } from 'lucide-react';
+import { LogOut, Cpu, Users } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { cloudService } from '../services/cloudService';
+import { dataService } from '../services/dataService';
 import NotificationBell from './NotificationBell';
 
 const Header: React.FC = () => {
   const { user, logout } = useAuth();
-  const [connectionStatus, setConnectionStatus] = useState({ isOnline: true, lastSync: null });
+  const [onlineCount, setOnlineCount] = useState(0);
 
   useEffect(() => {
-    const checkStatus = () => {
-      setConnectionStatus(cloudService.getConnectionStatus());
+    const updateOnlineCount = () => {
+      const stats = dataService.getSystemStats();
+      setOnlineCount(stats.onlineUsers);
     };
     
-    checkStatus();
-    const interval = setInterval(checkStatus, 10000); // Check every 10 seconds
+    updateOnlineCount();
+    const interval = setInterval(updateOnlineCount, 30000); // Update every 30 seconds
     
     return () => clearInterval(interval);
   }, []);
@@ -43,24 +44,19 @@ const Header: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-4">
-            {/* Connection Status */}
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="hidden sm:flex items-center gap-2"
-            >
-              {connectionStatus.isOnline ? (
-                <div className="flex items-center gap-1 text-green-400">
-                  <Wifi className="w-4 h-4" />
-                  <span className="text-xs">Online</span>
-                </div>
-              ) : (
-                <div className="flex items-center gap-1 text-red-400">
-                  <WifiOff className="w-4 h-4" />
-                  <span className="text-xs">Offline</span>
-                </div>
-              )}
-            </motion.div>
+            {/* Online Users Count */}
+            {user.role === 'admin' && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="hidden sm:flex items-center gap-2 bg-green-500/20 border border-green-500/30 px-3 py-1 rounded-full"
+              >
+                <Users className="w-4 h-4 text-green-400" />
+                <span className="text-green-400 text-sm font-medium">
+                  {onlineCount} online
+                </span>
+              </motion.div>
+            )}
 
             <NotificationBell />
             

@@ -18,8 +18,6 @@ export interface Component {
   availableQuantity: number;
   category: string;
   description?: string;
-  createdAt?: string;
-  updatedAt?: string;
 }
 
 export interface BorrowRequest {
@@ -38,8 +36,6 @@ export interface BorrowRequest {
   approvedAt?: string;
   returnedAt?: string;
   notes?: string;
-  createdAt?: string;
-  updatedAt?: string;
 }
 
 export interface Notification {

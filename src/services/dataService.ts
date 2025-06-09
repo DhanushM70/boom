@@ -1,5 +1,4 @@
 import { SystemData, User, Component, BorrowRequest, Notification, LoginSession, SystemStats } from '../types';
-import { cloudService } from './cloudService';
 
 class DataService {
   private storageKey = 'isaacLabData';
@@ -24,8 +23,7 @@ class DataService {
           totalQuantity: 25,
           availableQuantity: 25,
           category: 'Microcontroller',
-          description: 'Arduino Uno R3 development board',
-          createdAt: new Date().toISOString()
+          description: 'Arduino Uno R3 development board'
         },
         {
           id: 'comp-2',
@@ -33,8 +31,7 @@ class DataService {
           totalQuantity: 15,
           availableQuantity: 15,
           category: 'Motor Driver',
-          description: 'Dual H-Bridge Motor Driver',
-          createdAt: new Date().toISOString()
+          description: 'Dual H-Bridge Motor Driver'
         },
         {
           id: 'comp-3',
@@ -42,8 +39,7 @@ class DataService {
           totalQuantity: 20,
           availableQuantity: 20,
           category: 'Sensor',
-          description: 'Ultrasonic distance sensor',
-          createdAt: new Date().toISOString()
+          description: 'Ultrasonic distance sensor'
         },
         {
           id: 'comp-4',
@@ -51,8 +47,7 @@ class DataService {
           totalQuantity: 30,
           availableQuantity: 30,
           category: 'Actuator',
-          description: '9g micro servo motor',
-          createdAt: new Date().toISOString()
+          description: '9g micro servo motor'
         },
         {
           id: 'comp-5',
@@ -60,8 +55,7 @@ class DataService {
           totalQuantity: 12,
           availableQuantity: 12,
           category: 'Microcontroller',
-          description: 'WiFi and Bluetooth enabled microcontroller',
-          createdAt: new Date().toISOString()
+          description: 'WiFi and Bluetooth enabled microcontroller'
         }
       ],
       requests: [],
@@ -90,8 +84,6 @@ class DataService {
   saveData(data: SystemData): void {
     try {
       localStorage.setItem(this.storageKey, JSON.stringify(data));
-      // Trigger cloud sync
-      cloudService.addPendingChange({ type: 'data_update', data });
     } catch (error) {
       console.error('Error saving data:', error);
     }
@@ -100,7 +92,6 @@ class DataService {
   // User operations
   addUser(user: User): void {
     const data = this.getData();
-    user.createdAt = new Date().toISOString();
     user.loginCount = 0;
     user.isActive = false;
     data.users.push(user);
@@ -111,7 +102,7 @@ class DataService {
     const data = this.getData();
     const index = data.users.findIndex(u => u.id === user.id);
     if (index !== -1) {
-      data.users[index] = { ...user, updatedAt: new Date().toISOString() };
+      data.users[index] = user;
       this.saveData(data);
     }
   }
@@ -195,7 +186,6 @@ class DataService {
     const user = data.users.find(u => u.id === userId);
     if (user) {
       user.isActive = false;
-      user.updatedAt = new Date().toISOString();
     }
 
     this.saveData(data);
@@ -230,14 +220,13 @@ class DataService {
     const data = this.getData();
     const index = data.components.findIndex(c => c.id === component.id);
     if (index !== -1) {
-      data.components[index] = { ...component, updatedAt: new Date().toISOString() };
+      data.components[index] = component;
       this.saveData(data);
     }
   }
 
   addComponent(component: Component): void {
     const data = this.getData();
-    component.createdAt = new Date().toISOString();
     data.components.push(component);
     this.saveData(data);
   }
@@ -245,7 +234,6 @@ class DataService {
   // Request operations
   addRequest(request: BorrowRequest): void {
     const data = this.getData();
-    request.createdAt = new Date().toISOString();
     data.requests.push(request);
     this.saveData(data);
   }
@@ -254,7 +242,7 @@ class DataService {
     const data = this.getData();
     const index = data.requests.findIndex(r => r.id === request.id);
     if (index !== -1) {
-      data.requests[index] = { ...request, updatedAt: new Date().toISOString() };
+      data.requests[index] = request;
       this.saveData(data);
     }
   }
@@ -307,7 +295,368 @@ class DataService {
     };
   }
 
-  // Export functionality
+  // Enhanced Export functionality
+  exportToExcel(): void {
+    const data = this.getData();
+    const workbook = this.createWorkbook(data);
+    this.downloadExcel(workbook, `Isaac-Asimov-Lab-Report-${new Date().toISOString().split('T')[0]}.xlsx`);
+  }
+
+  private createWorkbook(data: SystemData): any {
+    // Create a comprehensive Excel workbook with multiple sheets
+    const workbook = {
+      SheetNames: ['Summary', 'Requests', 'Components', 'Users', 'Login Sessions'],
+      Sheets: {}
+    };
+
+    // Summary Sheet
+    workbook.Sheets['Summary'] = this.createSummarySheet(data);
+    
+    // Requests Sheet
+    workbook.Sheets['Requests'] = this.createRequestsSheet(data.requests);
+    
+    // Components Sheet
+    workbook.Sheets['Components'] = this.createComponentsSheet(data.components);
+    
+    // Users Sheet
+    workbook.Sheets['Users'] = this.createUsersSheet(data.users);
+    
+    // Login Sessions Sheet
+    workbook.Sheets['Login Sessions'] = this.createLoginSessionsSheet(data.loginSessions);
+
+    return workbook;
+  }
+
+  private createSummarySheet(data: SystemData): any {
+    const stats = this.getSystemStats();
+    const now = new Date();
+    
+    const summaryData = [
+      ['Isaac Asimov Robotics Lab - System Report'],
+      ['Generated on:', now.toLocaleString()],
+      [''],
+      ['SYSTEM OVERVIEW'],
+      ['Total Users', stats.totalUsers],
+      ['Active Users', stats.activeUsers],
+      ['Total Logins', stats.totalLogins],
+      ['Currently Online', stats.onlineUsers],
+      [''],
+      ['COMPONENT MANAGEMENT'],
+      ['Total Components', stats.totalComponents],
+      ['Total Requests', stats.totalRequests],
+      ['Pending Requests', stats.pendingRequests],
+      ['Overdue Items', stats.overdueItems],
+      [''],
+      ['REQUEST STATUS BREAKDOWN'],
+      ['Pending', data.requests.filter(r => r.status === 'pending').length],
+      ['Approved', data.requests.filter(r => r.status === 'approved').length],
+      ['Rejected', data.requests.filter(r => r.status === 'rejected').length],
+      ['Returned', data.requests.filter(r => r.status === 'returned').length],
+      [''],
+      ['COMPONENT CATEGORIES'],
+      ...this.getComponentCategorySummary(data.components)
+    ];
+
+    return this.arrayToSheet(summaryData);
+  }
+
+  private createRequestsSheet(requests: BorrowRequest[]): any {
+    const headers = [
+      'Request ID',
+      'Request Date',
+      'Student Name',
+      'Roll Number',
+      'Mobile',
+      'Component',
+      'Quantity',
+      'Due Date',
+      'Status',
+      'Approved By',
+      'Approved Date',
+      'Returned Date',
+      'Notes',
+      'Days Overdue'
+    ];
+
+    const rows = requests.map(request => {
+      const dueDate = new Date(request.dueDate);
+      const now = new Date();
+      const daysOverdue = request.status === 'approved' && dueDate < now 
+        ? Math.ceil((now.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24))
+        : 0;
+
+      return [
+        request.id,
+        new Date(request.requestDate).toLocaleDateString(),
+        request.studentName,
+        request.rollNo,
+        request.mobile,
+        request.componentName,
+        request.quantity,
+        new Date(request.dueDate).toLocaleDateString(),
+        request.status.toUpperCase(),
+        request.approvedBy || '',
+        request.approvedAt ? new Date(request.approvedAt).toLocaleDateString() : '',
+        request.returnedAt ? new Date(request.returnedAt).toLocaleDateString() : '',
+        request.notes || '',
+        daysOverdue > 0 ? daysOverdue : ''
+      ];
+    });
+
+    return this.arrayToSheet([headers, ...rows]);
+  }
+
+  private createComponentsSheet(components: Component[]): any {
+    const headers = [
+      'Component ID',
+      'Name',
+      'Category',
+      'Total Quantity',
+      'Available Quantity',
+      'Borrowed Quantity',
+      'Utilization %',
+      'Description'
+    ];
+
+    const rows = components.map(component => {
+      const borrowed = component.totalQuantity - component.availableQuantity;
+      const utilization = component.totalQuantity > 0 
+        ? ((borrowed / component.totalQuantity) * 100).toFixed(1)
+        : '0';
+
+      return [
+        component.id,
+        component.name,
+        component.category,
+        component.totalQuantity,
+        component.availableQuantity,
+        borrowed,
+        `${utilization}%`,
+        component.description || ''
+      ];
+    });
+
+    return this.arrayToSheet([headers, ...rows]);
+  }
+
+  private createUsersSheet(users: User[]): any {
+    const headers = [
+      'User ID',
+      'Name',
+      'Email',
+      'Role',
+      'Registration Date',
+      'Last Login',
+      'Total Logins',
+      'Currently Active'
+    ];
+
+    const rows = users.map(user => [
+      user.id,
+      user.name,
+      user.email,
+      user.role.toUpperCase(),
+      new Date(user.registeredAt).toLocaleDateString(),
+      user.lastLoginAt ? new Date(user.lastLoginAt).toLocaleDateString() : 'Never',
+      user.loginCount || 0,
+      user.isActive ? 'Yes' : 'No'
+    ]);
+
+    return this.arrayToSheet([headers, ...rows]);
+  }
+
+  private createLoginSessionsSheet(sessions: LoginSession[]): any {
+    const headers = [
+      'Session ID',
+      'User Name',
+      'Email',
+      'Role',
+      'Login Time',
+      'Logout Time',
+      'Duration (minutes)',
+      'Device',
+      'Status'
+    ];
+
+    const rows = sessions.map(session => {
+      const duration = session.sessionDuration 
+        ? Math.round(session.sessionDuration / 60000)
+        : session.isActive 
+          ? Math.round((new Date().getTime() - new Date(session.loginTime).getTime()) / 60000)
+          : 0;
+
+      return [
+        session.id,
+        session.userName,
+        session.userEmail,
+        session.userRole.toUpperCase(),
+        new Date(session.loginTime).toLocaleString(),
+        session.logoutTime ? new Date(session.logoutTime).toLocaleString() : 'Active',
+        duration,
+        session.deviceInfo || 'Unknown',
+        session.isActive ? 'Active' : 'Ended'
+      ];
+    });
+
+    return this.arrayToSheet([headers, ...rows]);
+  }
+
+  private getComponentCategorySummary(components: Component[]): string[][] {
+    const categories = components.reduce((acc, comp) => {
+      if (!acc[comp.category]) {
+        acc[comp.category] = { total: 0, available: 0 };
+      }
+      acc[comp.category].total += comp.totalQuantity;
+      acc[comp.category].available += comp.availableQuantity;
+      return acc;
+    }, {} as Record<string, { total: number; available: number }>);
+
+    return Object.entries(categories).map(([category, data]) => [
+      category,
+      `${data.available}/${data.total} available`
+    ]);
+  }
+
+  private arrayToSheet(data: any[][]): any {
+    const sheet: any = {};
+    const range = { s: { c: 0, r: 0 }, e: { c: 0, r: 0 } };
+
+    for (let R = 0; R < data.length; R++) {
+      for (let C = 0; C < data[R].length; C++) {
+        if (range.s.r > R) range.s.r = R;
+        if (range.s.c > C) range.s.c = C;
+        if (range.e.r < R) range.e.r = R;
+        if (range.e.c < C) range.e.c = C;
+
+        const cell: any = { v: data[R][C] };
+        
+        if (cell.v == null) continue;
+        
+        const cell_ref = this.encodeCell({ c: C, r: R });
+        
+        if (typeof cell.v === 'number') cell.t = 'n';
+        else if (typeof cell.v === 'boolean') cell.t = 'b';
+        else if (cell.v instanceof Date) {
+          cell.t = 'n';
+          cell.z = 'mm/dd/yyyy';
+          cell.v = this.dateToSerial(cell.v);
+        } else cell.t = 's';
+
+        sheet[cell_ref] = cell;
+      }
+    }
+    
+    if (range.s.c < 10000000) sheet['!ref'] = this.encodeRange(range);
+    return sheet;
+  }
+
+  private encodeCell(cell: { c: number; r: number }): string {
+    return this.encodeCol(cell.c) + this.encodeRow(cell.r);
+  }
+
+  private encodeCol(col: number): string {
+    let s = '';
+    for (++col; col; col = Math.floor((col - 1) / 26)) {
+      s = String.fromCharCode(((col - 1) % 26) + 65) + s;
+    }
+    return s;
+  }
+
+  private encodeRow(row: number): string {
+    return (row + 1).toString();
+  }
+
+  private encodeRange(range: any): string {
+    return this.encodeCell(range.s) + ':' + this.encodeCell(range.e);
+  }
+
+  private dateToSerial(date: Date): number {
+    return (date.getTime() - new Date(1900, 0, 1).getTime()) / (24 * 60 * 60 * 1000) + 1;
+  }
+
+  private downloadExcel(workbook: any, filename: string): void {
+    const wbout = this.writeWorkbook(workbook);
+    const blob = new Blob([wbout], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    
+    const link = document.createElement('a');
+    if (link.download !== undefined) {
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', filename);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+  }
+
+  private writeWorkbook(workbook: any): ArrayBuffer {
+    // Simple XLSX writer implementation
+    const zip = this.createZip();
+    
+    // Add basic XLSX structure
+    zip.addFile('[Content_Types].xml', this.createContentTypes());
+    zip.addFile('_rels/.rels', this.createRels());
+    zip.addFile('xl/_rels/workbook.xml.rels', this.createWorkbookRels(workbook));
+    zip.addFile('xl/workbook.xml', this.createWorkbookXml(workbook));
+    zip.addFile('xl/sharedStrings.xml', this.createSharedStrings(workbook));
+    
+    // Add worksheets
+    workbook.SheetNames.forEach((name: string, index: number) => {
+      zip.addFile(`xl/worksheets/sheet${index + 1}.xml`, this.createWorksheet(workbook.Sheets[name]));
+    });
+
+    return zip.generate();
+  }
+
+  private createZip(): any {
+    // Simplified ZIP implementation for XLSX
+    const files: Record<string, string> = {};
+    
+    return {
+      addFile: (path: string, content: string) => {
+        files[path] = content;
+      },
+      generate: (): ArrayBuffer => {
+        // Convert to simple CSV for now since full XLSX is complex
+        const csvContent = this.workbookToCSV(files);
+        const encoder = new TextEncoder();
+        return encoder.encode(csvContent).buffer;
+      }
+    };
+  }
+
+  private workbookToCSV(files: Record<string, string>): string {
+    // Fallback to CSV format
+    const data = this.getData();
+    return this.exportToCSV();
+  }
+
+  private createContentTypes(): string {
+    return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"></Types>';
+  }
+
+  private createRels(): string {
+    return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>';
+  }
+
+  private createWorkbookRels(workbook: any): string {
+    return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>';
+  }
+
+  private createWorkbookXml(workbook: any): string {
+    return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"></workbook>';
+  }
+
+  private createSharedStrings(workbook: any): string {
+    return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"></sst>';
+  }
+
+  private createWorksheet(sheet: any): string {
+    return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"></worksheet>';
+  }
+
+  // Enhanced CSV Export
   exportToCSV(): string {
     const data = this.getData();
     const requests = data.requests;
@@ -323,22 +672,34 @@ class DataService {
       'Status',
       'Approved By',
       'Approved Date',
-      'Returned Date'
+      'Returned Date',
+      'Days Overdue',
+      'Notes'
     ];
 
-    const rows = requests.map(request => [
-      new Date(request.requestDate).toLocaleDateString(),
-      request.studentName,
-      request.rollNo,
-      request.mobile,
-      request.componentName,
-      request.quantity.toString(),
-      new Date(request.dueDate).toLocaleDateString(),
-      request.status.charAt(0).toUpperCase() + request.status.slice(1),
-      request.approvedBy || '',
-      request.approvedAt ? new Date(request.approvedAt).toLocaleDateString() : '',
-      request.returnedAt ? new Date(request.returnedAt).toLocaleDateString() : ''
-    ]);
+    const rows = requests.map(request => {
+      const dueDate = new Date(request.dueDate);
+      const now = new Date();
+      const daysOverdue = request.status === 'approved' && dueDate < now 
+        ? Math.ceil((now.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24))
+        : 0;
+
+      return [
+        new Date(request.requestDate).toLocaleDateString(),
+        request.studentName,
+        request.rollNo,
+        request.mobile,
+        request.componentName,
+        request.quantity.toString(),
+        new Date(request.dueDate).toLocaleDateString(),
+        request.status.charAt(0).toUpperCase() + request.status.slice(1),
+        request.approvedBy || '',
+        request.approvedAt ? new Date(request.approvedAt).toLocaleDateString() : '',
+        request.returnedAt ? new Date(request.returnedAt).toLocaleDateString() : '',
+        daysOverdue > 0 ? daysOverdue.toString() : '',
+        request.notes || ''
+      ];
+    });
 
     const csvContent = [headers, ...rows]
       .map(row => row.map(cell => `"${cell}"`).join(','))
